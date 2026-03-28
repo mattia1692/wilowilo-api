@@ -4,6 +4,8 @@ const MACRO_SYSTEM = 'Sei un nutrizionista. Stima i macronutrienti del pasto des
 
 const SUGGEST_SYSTEM = 'Sei un nutrizionista esperto. Ti vengono dati i macro rimanenti da raggiungere oggi. Suggerisci 3 opzioni di pasto o spuntino concrete e realistiche che aiutino a raggiungere quei valori. Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown. Struttura: {"suggestions":[{"name":"nome pasto","description":"descrizione breve e concreta","kcal":numero,"protein":numero,"carbs":numero,"fat":numero}]}';
 
+const PLAN_SYSTEM = 'Sei un nutrizionista esperto. Ti vengono forniti obiettivi calorici e/o di macronutrienti, più eventuali preferenze o esclusioni alimentari. Suggerisci 3 pasti concreti e realistici che rispettino quei valori. Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown. Struttura: {"suggestions":[{"name":"nome pasto","description":"descrizione dettagliata con ingredienti e grammature","kcal":numero,"protein":numero,"carbs":numero,"fat":numero}]}';
+
 async function callClaude(system, userMessage, apiKey) {
   const { default: fetch } = await import('node-fetch');
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -50,6 +52,15 @@ const server = http.createServer(async (req, res) => {
 - Grassi: ${remaining.fat}g
 Suggerisci 3 pasti o spuntini concreti e semplici da preparare.`;
         result = await callClaude(SUGGEST_SYSTEM, msg, apiKey);
+      } else if (payload.type === 'plan') {
+        const { kcal, protein, carbs, fat, notes } = payload;
+        let msg = `Obiettivi per il pasto:\n- Calorie: ${kcal} kcal`;
+        if (protein) msg += `\n- Proteine: ${protein}g`;
+        if (carbs)   msg += `\n- Carboidrati: ${carbs}g`;
+        if (fat)     msg += `\n- Grassi: ${fat}g`;
+        if (notes)   msg += `\n\nPreferenze / esclusioni: ${notes}`;
+        msg += '\n\nSuggerisci 3 pasti concreti che rispettino questi obiettivi.';
+        result = await callClaude(PLAN_SYSTEM, msg, apiKey);
       } else {
         result = await callClaude(MACRO_SYSTEM, payload.food, apiKey);
       }
