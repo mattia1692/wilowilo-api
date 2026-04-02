@@ -44,9 +44,23 @@ function setCORS(req, res) {
   if (ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Vary', 'Origin');
+}
+
+// ── Food proxy helpers ────────────────────────────────────────────────────────
+const OFF_FIELDS = 'product_name,product_name_it,product_name_en,brands,nutriments,unique_scans_n';
+const OFF_UA = 'WiloWilo/1.0 (https://wilowilo-pwa.pages.dev; contact@wilowilo.app)';
+
+async function offFetch(url) {
+  const { default: fetch } = await import('node-fetch');
+  const res = await fetch(url, { headers: { 'User-Agent': OFF_UA } });
+  if (!res.ok) return [];
+  const text = await res.text();
+  if (!text.trim().startsWith('{')) return [];
+  const data = JSON.parse(text);
+  return data.products ?? (data.product ? [data.product] : []);
 }
 
 // ── Claude ────────────────────────────────────────────────────────────────────
@@ -80,6 +94,34 @@ const server = http.createServer(async (req, res) => {
   setCORS(req, res);
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+  // ── Food search proxy (no auth required — OFf data is public) ───────────────
+  const url = new URL(req.url, `http://localhost`);
+  if (req.method === 'GET' && url.pathname === '/food/search') {
+    const q = url.searchParams.get('q') || '';
+    if (!q.trim()) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ products: [] })); return; }
+    const enc = encodeURIComponent(q.trim());
+    const base = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${enc}&action=process&json=1&page_size=50&fields=${OFF_FIELDS}`;
+    const products = await offFetch(base);
+    // best-effort Italian subdomain
+    try {
+      const it = await offFetch(`https://it.openfoodfacts.org/cgi/search.pl?search_terms=${enc}&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`);
+      const seen = new Set(products.map(p => (p.product_name_it || p.product_name || '').trim()));
+      for (const p of it) { const n = (p.product_name_it || p.product_name || '').trim(); if (n && !seen.has(n)) { seen.add(n); products.push(p); } }
+    } catch { /* ignore */ }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ products }));
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname.startsWith('/food/barcode/')) {
+    const barcode = url.pathname.replace('/food/barcode/', '').replace(/[^0-9]/g, '');
+    if (!barcode) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ product: null })); return; }
+    const products = await offFetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}?fields=${OFF_FIELDS}`);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ products }));
+    return;
+  }
 
   if (req.method !== 'POST') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
