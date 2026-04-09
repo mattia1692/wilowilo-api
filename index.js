@@ -1,5 +1,10 @@
 const http = require('http');
 const admin = require('firebase-admin');
+let _fetch;
+async function getFetch() {
+  if (!_fetch) { const m = await import('node-fetch'); _fetch = m.default; }
+  return _fetch;
+}
 
 // ── Firebase Admin (verifica ID token) ───────────────────────────────────────
 admin.initializeApp({
@@ -52,16 +57,40 @@ function setCORS(req, res) {
 // ── Food proxy helpers ────────────────────────────────────────────────────────
 const OFF_FIELDS = 'product_name,product_name_it,product_name_en,brands,nutriments,unique_scans_n';
 const OFF_UA = 'WiloWilo/1.0 (https://wilowilo-pwa.pages.dev; contact@wilowilo.app)';
+const OFF_TIMEOUT = 6000; // ms per request
+
+// Simple in-memory cache: { [url]: { data, ts } }
+const offCache = new Map();
+const OFF_CACHE_TTL = 5 * 60 * 1000; // 5 min
 
 async function offFetch(url) {
-  const { default: fetch } = await import('node-fetch');
-  const res = await fetch(url, { headers: { 'User-Agent': OFF_UA } });
-  if (!res.ok) return [];
-  const text = await res.text();
-  if (!text.trim().startsWith('{')) return [];
-  const data = JSON.parse(text);
-  return data.products ?? (data.product ? [data.product] : []);
+  const cached = offCache.get(url);
+  if (cached && Date.now() - cached.ts < OFF_CACHE_TTL) return cached.data;
+
+  const fetch = await getFetch();
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), OFF_TIMEOUT);
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': OFF_UA }, signal: ac.signal });
+    if (!res.ok) return [];
+    const text = await res.text();
+    if (!text.trim().startsWith('{')) return [];
+    const data = JSON.parse(text);
+    const result = data.products ?? (data.product ? [data.product] : []);
+    offCache.set(url, { data: result, ts: Date.now() });
+    return result;
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
 }
+
+// Prune cache every 10 min
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of offCache) if (now - v.ts > OFF_CACHE_TTL) offCache.delete(k);
+}, 10 * 60 * 1000);
 
 // ── Claude ────────────────────────────────────────────────────────────────────
 const MACRO_SYSTEM = 'Sei un nutrizionista. Scomponi il pasto descritto nei suoi alimenti principali e stima i macronutrienti per ciascuno separatamente. Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown. Struttura: {"items":[{"name":"nome breve","kcal":numero,"protein":numero,"carbs":numero,"fat":numero,"satfat":numero,"fiber":numero,"ultra":boolean}]}. Arrotonda a interi tranne satfat e fiber (1 decimale). "ultra" è true per cibi ultra-processati. Se il pasto è un unico alimento indivisibile, restituisci un array con un solo elemento.';
@@ -69,7 +98,7 @@ const SUGGEST_SYSTEM = 'Sei un nutrizionista esperto. Ti vengono dati i macro ri
 const PLAN_SYSTEM = 'Sei un nutrizionista esperto. Ti vengono forniti obiettivi calorici e/o di macronutrienti, più eventuali preferenze o esclusioni alimentari. Suggerisci 3 pasti concreti e realistici che rispettino quei valori. Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown. Struttura: {"suggestions":[{"name":"nome pasto","description":"descrizione dettagliata con ingredienti e grammature","kcal":numero,"protein":numero,"carbs":numero,"fat":numero}]}';
 
 async function callClaude(system, userMessage) {
-  const { default: fetch } = await import('node-fetch');
+  const fetch = await getFetch();
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -101,14 +130,16 @@ const server = http.createServer(async (req, res) => {
     const q = url.searchParams.get('q') || '';
     if (!q.trim()) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ products: [] })); return; }
     const enc = encodeURIComponent(q.trim());
-    const base = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${enc}&action=process&json=1&page_size=50&fields=${OFF_FIELDS}`;
-    const products = await offFetch(base);
-    // best-effort Italian subdomain
-    try {
-      const it = await offFetch(`https://it.openfoodfacts.org/cgi/search.pl?search_terms=${enc}&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`);
-      const seen = new Set(products.map(p => (p.product_name_it || p.product_name || '').trim()));
-      for (const p of it) { const n = (p.product_name_it || p.product_name || '').trim(); if (n && !seen.has(n)) { seen.add(n); products.push(p); } }
-    } catch { /* ignore */ }
+    const [worldResults, itResults] = await Promise.all([
+      offFetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${enc}&action=process&json=1&page_size=50&fields=${OFF_FIELDS}`),
+      offFetch(`https://it.openfoodfacts.org/cgi/search.pl?search_terms=${enc}&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`),
+    ]);
+    const products = [...worldResults];
+    const seen = new Set(products.map(p => (p.product_name_it || p.product_name || '').trim()));
+    for (const p of itResults) {
+      const n = (p.product_name_it || p.product_name || '').trim();
+      if (n && !seen.has(n)) { seen.add(n); products.push(p); }
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ products }));
     return;
