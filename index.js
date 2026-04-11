@@ -54,30 +54,50 @@ function setCORS(req, res) {
   res.setHeader('Vary', 'Origin');
 }
 
-// ── Food proxy helpers ────────────────────────────────────────────────────────
-const OFF_FIELDS = 'product_name,product_name_it,product_name_en,brands,nutriments,unique_scans_n';
-const OFF_UA = 'WiloWilo/1.0 (https://wilowilo-pwa.pages.dev; contact@wilowilo.app)';
-const OFF_TIMEOUT = 6000; // ms per request
+// ── Wilo Foods API helpers ────────────────────────────────────────────────────
+const WFA_URL = process.env.WILO_FOODS_API_URL || 'https://wilo-foods-api-production.up.railway.app';
+const WFA_KEY = process.env.WILO_FOODS_API_KEY || '';
+const WFA_TIMEOUT = 6000;
 
-// Simple in-memory cache: { [url]: { data, ts } }
-const offCache = new Map();
-const OFF_CACHE_TTL = 5 * 60 * 1000; // 5 min
+// Simple in-memory cache
+const wfaCache = new Map();
+const WFA_CACHE_TTL = 5 * 60 * 1000;
 
-async function offFetch(url) {
-  const cached = offCache.get(url);
-  if (cached && Date.now() - cached.ts < OFF_CACHE_TTL) return cached.data;
+// Maps a wilo-foods-api food record to the OFFProduct shape expected by foodDatabaseService.ts
+function wfaToOff(food) {
+  return {
+    product_name_it: food.display_name || food.name,
+    product_name: food.name,
+    brands: food.brand || undefined,
+    nutriments: {
+      'energy-kcal_100g': food.energy_kcal ?? 0,
+      'proteins_100g': food.proteins_g ?? 0,
+      'carbohydrates_100g': food.carbs_g ?? 0,
+      'fat_100g': food.fats_g ?? 0,
+      'saturated-fat_100g': food.saturated_fats_g ?? 0,
+      'fiber_100g': food.fiber_g ?? 0,
+    },
+    unique_scans_n: food.is_verified ? 100000 : (food.source === 'crea' ? 80000 : 10000),
+  };
+}
+
+async function wfaFetch(path) {
+  const cacheKey = path;
+  const cached = wfaCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < WFA_CACHE_TTL) return cached.data;
 
   const fetch = await getFetch();
   const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), OFF_TIMEOUT);
+  const timer = setTimeout(() => ac.abort(), WFA_TIMEOUT);
   try {
-    const res = await fetch(url, { headers: { 'User-Agent': OFF_UA }, signal: ac.signal });
+    const res = await fetch(`${WFA_URL}${path}`, {
+      headers: { 'X-API-Key': WFA_KEY },
+      signal: ac.signal,
+    });
     if (!res.ok) return [];
-    const text = await res.text();
-    if (!text.trim().startsWith('{')) return [];
-    const data = JSON.parse(text);
-    const result = data.products ?? (data.product ? [data.product] : []);
-    offCache.set(url, { data: result, ts: Date.now() });
+    const json = await res.json();
+    const result = Array.isArray(json.data) ? json.data : (json.data ? [json.data] : []);
+    wfaCache.set(cacheKey, { data: result, ts: Date.now() });
     return result;
   } catch {
     return [];
@@ -89,7 +109,7 @@ async function offFetch(url) {
 // Prune cache every 10 min
 setInterval(() => {
   const now = Date.now();
-  for (const [k, v] of offCache) if (now - v.ts > OFF_CACHE_TTL) offCache.delete(k);
+  for (const [k, v] of wfaCache) if (now - v.ts > WFA_CACHE_TTL) wfaCache.delete(k);
 }, 10 * 60 * 1000);
 
 // ── Claude ────────────────────────────────────────────────────────────────────
@@ -124,22 +144,14 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-  // ── Food search proxy (no auth required — OFf data is public) ───────────────
+  // ── Food search proxy → wilo-foods-api ──────────────────────────────────────
   const url = new URL(req.url, `http://localhost`);
   if (req.method === 'GET' && url.pathname === '/food/search') {
     const q = url.searchParams.get('q') || '';
     if (!q.trim()) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ products: [] })); return; }
     const enc = encodeURIComponent(q.trim());
-    const [worldResults, itResults] = await Promise.all([
-      offFetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${enc}&action=process&json=1&page_size=50&fields=${OFF_FIELDS}`),
-      offFetch(`https://it.openfoodfacts.org/cgi/search.pl?search_terms=${enc}&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`),
-    ]);
-    const products = [...worldResults];
-    const seen = new Set(products.map(p => (p.product_name_it || p.product_name || '').trim()));
-    for (const p of itResults) {
-      const n = (p.product_name_it || p.product_name || '').trim();
-      if (n && !seen.has(n)) { seen.add(n); products.push(p); }
-    }
+    const foods = await wfaFetch(`/v1/foods/search?q=${enc}&limit=30`);
+    const products = foods.map(wfaToOff);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ products }));
     return;
@@ -148,7 +160,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname.startsWith('/food/barcode/')) {
     const barcode = url.pathname.replace('/food/barcode/', '').replace(/[^0-9]/g, '');
     if (!barcode) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ product: null })); return; }
-    const products = await offFetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}?fields=${OFF_FIELDS}`);
+    const foods = await wfaFetch(`/v1/foods/barcode/${barcode}`);
+    const products = foods.map(wfaToOff);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ products }));
     return;
