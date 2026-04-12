@@ -171,6 +171,17 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && url.pathname === '/food/search/extended') {
+    const q = url.searchParams.get('q') || '';
+    if (!q.trim()) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ products: [] })); return; }
+    const enc = encodeURIComponent(q.trim());
+    const foods = await wfaFetch(`/v1/foods/search/extended?q=${enc}&limit=30`);
+    const products = foods.map(wfaToOff);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ products }));
+    return;
+  }
+
   if (req.method === 'GET' && url.pathname.startsWith('/food/barcode/')) {
     const barcode = url.pathname.replace('/food/barcode/', '').replace(/[^0-9]/g, '');
     if (!barcode) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ product: null })); return; }
