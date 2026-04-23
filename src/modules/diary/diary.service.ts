@@ -57,6 +57,30 @@ export async function removeFoodItem(
   });
 }
 
+export async function removeItemById(
+  prisma: PrismaClient,
+  userId: string,
+  date: string,
+  meal: string,
+  itemId: string,
+) {
+  const existing = await prisma.diaryDay.findUnique({
+    where: { userId_date: { userId, date } },
+  });
+  if (!existing) return null;
+
+  const items = parseItems(existing.items);
+  const mealItems = Array.isArray(items[meal]) ? [...items[meal]] : [];
+  const filtered = mealItems.filter((item) => (item as Record<string, unknown>)['_id'] !== itemId);
+  if (filtered.length === mealItems.length) return null; // not found — no-op
+  items[meal] = filtered;
+
+  return prisma.diaryDay.update({
+    where: { userId_date: { userId, date } },
+    data: { items },
+  });
+}
+
 export async function updateDayMeta(
   prisma: PrismaClient,
   userId: string,

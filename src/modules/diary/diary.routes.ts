@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../../shared/middleware/auth';
-import { addItemBodySchema, dayMetaBodySchema, itemParamsSchema, dateParamSchema } from './diary.schema';
-import { addFoodItem, removeFoodItem, updateDayMeta } from './diary.service';
+import { addItemBodySchema, dayMetaBodySchema, itemParamsSchema, itemByIdParamsSchema, dateParamSchema } from './diary.schema';
+import { addFoodItem, removeFoodItem, removeItemById, updateDayMeta } from './diary.service';
 import { ValidationError } from '../../shared/errors';
 
 export async function diaryRoutes(fastify: FastifyInstance) {
@@ -29,6 +29,19 @@ export async function diaryRoutes(fastify: FastifyInstance) {
     await removeFoodItem(
       fastify.prisma, userId,
       parsed.data.date, parsed.data.meal, parsed.data.idx,
+    );
+    return reply.status(204).send();
+  });
+
+  // DELETE /diary/items/:date/:meal/by-id/:itemId — rimuove per _id stabile
+  fastify.delete('/items/:date/:meal/by-id/:itemId', async (request, reply) => {
+    const userId = request.user.sub;
+    const parsed = itemByIdParamsSchema.safeParse(request.params);
+    if (!parsed.success) throw new ValidationError('Parametri non validi');
+
+    await removeItemById(
+      fastify.prisma, userId,
+      parsed.data.date, parsed.data.meal, parsed.data.itemId,
     );
     return reply.status(204).send();
   });
