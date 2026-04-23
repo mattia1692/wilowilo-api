@@ -29,6 +29,10 @@ export const dayMetaBodySchema = z.object({
   water: z.number().int().min(0).optional(),
 });
 
+export const setDayItemsBodySchema = z.object({
+  items: z.record(z.string(), z.array(foodItemSchema)),
+});
+
 export const dateParamSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });

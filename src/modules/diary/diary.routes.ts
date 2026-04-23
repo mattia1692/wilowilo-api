@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../../shared/middleware/auth';
-import { addItemBodySchema, dayMetaBodySchema, itemParamsSchema, itemByIdParamsSchema, dateParamSchema } from './diary.schema';
-import { addFoodItem, removeFoodItem, removeItemById, updateDayMeta } from './diary.service';
+import { addItemBodySchema, dayMetaBodySchema, itemParamsSchema, itemByIdParamsSchema, dateParamSchema, setDayItemsBodySchema } from './diary.schema';
+import { addFoodItem, removeFoodItem, removeItemById, updateDayMeta, setDayItems } from './diary.service';
 import { ValidationError } from '../../shared/errors';
 
 export async function diaryRoutes(fastify: FastifyInstance) {
@@ -53,6 +53,17 @@ export async function diaryRoutes(fastify: FastifyInstance) {
       }
     }
 
+    return reply.status(204).send();
+  });
+
+  // PUT /diary/days/:date/items — rimpiazza tutti gli items di un giorno (usato da edit/delete client-side)
+  fastify.put('/days/:date/items', async (request, reply) => {
+    const userId = request.user.sub;
+    const paramsParsed = dateParamSchema.safeParse(request.params);
+    if (!paramsParsed.success) throw new ValidationError('Data non valida');
+    const bodyParsed = setDayItemsBodySchema.safeParse(request.body);
+    if (!bodyParsed.success) throw new ValidationError('Dati non validi');
+    await setDayItems(fastify.prisma, userId, paramsParsed.data.date, bodyParsed.data.items);
     return reply.status(204).send();
   });
 

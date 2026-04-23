@@ -1,6 +1,19 @@
 import type { PrismaClient } from '@prisma/client';
 import type { FoodItem, DayMetaBody } from './diary.schema';
 
+export async function setDayItems(
+  prisma: PrismaClient,
+  userId: string,
+  date: string,
+  items: Record<string, FoodItem[]>,
+) {
+  return prisma.diaryDay.upsert({
+    where: { userId_date: { userId, date } },
+    create: { userId, date, items },
+    update: { items },
+  });
+}
+
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
