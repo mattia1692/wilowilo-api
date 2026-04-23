@@ -23,11 +23,11 @@ npm run db:generate
 
 ## Architecture
 
-TypeScript + Fastify + Prisma backend deployed on Railway as `macro-api` (URL: `macro-api-production.up.railway.app`). Serves as the primary backend for the **wilowilo-pwa** app.
+TypeScript + Fastify + Prisma backend deployed on Railway as `wilowilo-api`. Serves as the primary backend for the **wilowilo-pwa** app.
 
 ### Deployment
 
-- **Platform**: Railway (project `zestful-alignment`, service `macro-api`)
+- **Platform**: Railway (project `wilowilo`, service `wilowilo-api`)
 - **Database**: Railway PostgreSQL (service `wilowilo-db`, internal networking via `wilowilo-db.railway.internal:5432`)
 - **On start**: `npx prisma migrate deploy && node dist/server.js` (Dockerfile CMD)
 - Railway auto-deploys on push to `main`
@@ -86,7 +86,7 @@ Enabled only when `MIGRATION_SECRET` env var is set. Accepts `{ uid, email, data
 
 ### AI endpoints (POST /)
 
-Legacy root endpoint for backward compat. Verifies Firebase token directly (no macro-api session required). Rate limit: 30 req/hour per UID (in-memory, resets on restart).
+Legacy root endpoint for backward compat. Verifies Firebase token directly (no wilowilo-api session required). Rate limit: 30 req/hour per UID (in-memory, resets on restart).
 
 AI routes under `/food`:
 - `POST /ai/analyze` — macro breakdown of described meal
