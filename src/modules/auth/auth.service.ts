@@ -76,3 +76,79 @@ export async function loginOrRegister(prisma: PrismaClient, fbUser: FirebaseUser
 export async function getUserById(prisma: PrismaClient, id: string) {
   return prisma.user.findUnique({ where: { id } });
 }
+
+/**
+ * If FIREBASE_DB_URL is set and the user has no settings yet (first login),
+ * read from Firebase RTDB and migrate diary/weight/settings into PostgreSQL.
+ * Runs best-effort — failures are logged but do not block login.
+ */
+export async function maybeMigrateFromFirebase(
+  prisma: PrismaClient,
+  uid: string,
+  idToken: string,
+): Promise<void> {
+  const dbUrl = process.env.FIREBASE_DB_URL;
+  if (!dbUrl) return;
+
+  const existing = await prisma.userSettings.findUnique({ where: { userId: uid }, select: { userId: true } });
+  if (existing) return; // Already migrated
+
+  try {
+    const url = `${dbUrl}/users/${uid}/macro_tracker.json?auth=${idToken}`;
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const data = await res.json() as Record<string, unknown> | null;
+    if (!data) return;
+
+    const t = (data.targets ?? {}) as Record<string, number>;
+    const meals = Array.isArray(data.meals) ? data.meals as string[] : [];
+
+    await prisma.userSettings.create({
+      data: { userId: uid, kcal: t.kcal ?? 0, protein: t.protein ?? 0, carbs: t.carbs ?? 0, fat: t.fat ?? 0, satfat: t.satfat ?? 0, fiber: t.fiber ?? 0, waterTarget: t.waterTarget ?? 8, meals, sheetsUrl: (data.sheetsUrl as string) ?? '', lang: (data.lang as string) ?? 'it', weightHidden: (data.weightHidden as boolean) ?? false, wizardCompleted: (data.wizardCompleted as boolean) ?? false, startWeight: (data.startWeight as number) ?? null, goalWeight: (data.goalWeight as number) ?? null },
+    });
+
+    const history = (data.history ?? {}) as Record<string, { date?: string; items: object; hunger?: number | null; mood?: number | null; water?: number | null }>;
+    for (const [dateKey, day] of Object.entries(history)) {
+      const date = day.date ?? dateKey;
+      if (!date) continue;
+      await prisma.diaryDay.upsert({ where: { userId_date: { userId: uid, date } }, update: { items: day.items as object, hunger: day.hunger ?? null, mood: day.mood ?? null, water: day.water ?? null }, create: { userId: uid, date, items: day.items as object, hunger: day.hunger ?? null, mood: day.mood ?? null, water: day.water ?? null } });
+    }
+
+    if (data.today && typeof data.today === 'object') {
+      const today = data.today as { date: string; items: object; hunger?: number | null; mood?: number | null; water?: number | null };
+      if (today.date) {
+        await prisma.diaryDay.upsert({ where: { userId_date: { userId: uid, date: today.date } }, update: { items: today.items as object, hunger: today.hunger ?? null, mood: today.mood ?? null, water: today.water ?? null }, create: { userId: uid, date: today.date, items: today.items as object, hunger: today.hunger ?? null, mood: today.mood ?? null, water: today.water ?? null } });
+      }
+    }
+
+    const weight = (data.weight ?? {}) as Record<string, { date?: string; weight: number }>;
+    for (const [key, entry] of Object.entries(weight)) {
+      if (!entry?.weight) continue;
+      const date = entry.date ?? key;
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+      await prisma.weightEntry.upsert({ where: { userId_date: { userId: uid, date } }, update: { weight: entry.weight }, create: { userId: uid, date, weight: entry.weight } });
+    }
+
+    const checkpoints = (data.checkpoints ?? {}) as Record<string, { id?: string; date: string; targetWeight: number; label?: string }>;
+    const seen = new Set<string>();
+    for (const [cpKey, cp] of Object.entries(checkpoints)) {
+      if (!cp?.date || !cp?.targetWeight) continue;
+      const id = cp.id ?? cpKey;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      await prisma.weightCheckpoint.upsert({ where: { id }, update: { date: cp.date, targetWeight: cp.targetWeight, label: cp.label ?? null }, create: { id, userId: uid, date: cp.date, targetWeight: cp.targetWeight, label: cp.label ?? null } });
+    }
+
+    const myFoods = (data.my_foods ?? {}) as Record<string, { id?: string; name: string; brand?: string; per100g: object; createdAt?: string }>;
+    for (const [fKey, food] of Object.entries(myFoods)) {
+      if (!food?.name || !food?.per100g) continue;
+      const id = food.id ?? fKey;
+      const createdAt = food.createdAt ? new Date(food.createdAt) : new Date();
+      await prisma.customFood.upsert({ where: { id }, update: { name: food.name, brand: food.brand ?? null, per100g: food.per100g as object }, create: { id, userId: uid, name: food.name, brand: food.brand ?? null, per100g: food.per100g as object, createdAt } });
+    }
+
+    console.log(`[auto-migrate] Migrated Firebase data for uid=${uid}`);
+  } catch (e) {
+    console.error('[auto-migrate] Failed:', e);
+  }
+}

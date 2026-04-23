@@ -9,6 +9,7 @@ import {
   getUserById,
   getRefreshCookieName,
   getRefreshCookieOptions,
+  maybeMigrateFromFirebase,
 } from './auth.service';
 import { UnauthorizedError, ValidationError } from '../../shared/errors';
 
@@ -20,6 +21,9 @@ export async function authRoutes(fastify: FastifyInstance) {
 
     const fbUser = await verifyFirebaseToken(parsed.data.firebaseToken);
     const user = await loginOrRegister(fastify.prisma, fbUser);
+
+    // Best-effort: migrate Firebase RTDB data on first login (no-op if already done or FIREBASE_DB_URL not set)
+    void maybeMigrateFromFirebase(fastify.prisma, user.id, parsed.data.firebaseToken);
 
     const accessToken = signAccessToken({ sub: user.id, email: user.email });
     const refreshToken = signRefreshToken({ sub: user.id });
