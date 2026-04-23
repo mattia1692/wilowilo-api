@@ -5,52 +5,94 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Run locally
-node index.js
+# Run locally (requires DATABASE_URL env var pointing to a PostgreSQL instance)
+npm run dev
 
-# Install dependencies
-npm install
+# Build
+npm run build
 
-# Deploy to Fly.io (production)
-fly deploy
+# Deploy to Railway (production)
+git push origin main   # Railway auto-deploys from main
+
+# Database migrations (dev)
+npm run db:migrate
+
+# Generate Prisma client after schema changes
+npm run db:generate
 ```
-
-No build step, no tests, no linter. The entire service is a single file (`index.js`).
 
 ## Architecture
 
-A minimal Node.js HTTP server (no framework) deployed on Fly.io as `wilowilo-api`. It serves as a thin backend for the **wilowilo-pwa** app.
+TypeScript + Fastify + Prisma backend deployed on Railway as `macro-api` (URL: `macro-api-production.up.railway.app`). Serves as the primary backend for the **wilowilo-pwa** app.
+
+### Deployment
+
+- **Platform**: Railway (project `zestful-alignment`, service `macro-api`)
+- **Database**: Railway PostgreSQL (service `wilowilo-db`, internal networking via `wilowilo-db.railway.internal:5432`)
+- **On start**: `npx prisma migrate deploy && node dist/server.js` (Dockerfile CMD)
+- Railway auto-deploys on push to `main`
 
 ### Environment variables required
 
 | Variable | Purpose |
 |---|---|
+| `DATABASE_URL` | PostgreSQL connection string (set to internal Railway URL in prod) |
 | `FIREBASE_API_KEY` | Verifies Firebase ID tokens via Google REST API |
-| `ANTHROPIC_API_KEY` | Calls Claude Haiku for AI features |
-| `WILO_FOODS_API_URL` | Base URL for wilo-foods-api (default: Railway URL) |
-| `WILO_FOODS_API_KEY` | API key for wilo-foods-api |
+| `ANTHROPIC_API_KEY` | Calls Claude for AI features |
+| `JWT_ACCESS_SECRET` | Signs/verifies wilowilo access tokens (1h) |
+| `JWT_REFRESH_SECRET` | Signs/verifies refresh tokens (30d, httpOnly cookie) |
+| `COOKIE_SECRET` | Signs cookies |
+| `WILO_FOODS_API_URL` | Base URL for wilo-foods-api (defaults to Railway URL) |
+| `WILO_FOODS_API_KEY` | API key for wilo-foods-api (defaults to empty) |
 
-### Endpoints
+### Module structure
 
-**GET (no auth required)**
-- `GET /food/search?q=<query>` — proxies food search to wilo-foods-api, returns OFFProduct-shaped JSON
-- `GET /food/search/extended?q=<query>` — extended search variant
-- `GET /food/barcode/<barcode>` — barcode lookup via wilo-foods-api
+```
+src/
+  server.ts            — entry point, creates and starts Fastify app
+  app.ts               — plugin registration, /health, /init, /admin/migrate
+  plugins/
+    prisma.ts          — PrismaClient singleton on fastify.prisma
+    auth.ts            — @fastify/jwt + @fastify/cookie
+    cors.ts            — CORS allowlist
+  modules/
+    auth/              — POST /auth/login|refresh|logout (Firebase → JWT exchange)
+    diary/             — POST /diary/items, DELETE /diary/items/:date/:meal/:idx, PATCH /diary/days/:date
+    weight/            — PUT|DELETE /weight/:date, PUT|PATCH|DELETE /weight/checkpoints/:id
+    settings/          — PATCH /settings
+    foods/             — GET /food/search|search/extended|barcode/:barcode, POST /ai/*
+  shared/
+    errors/            — AppError hierarchy
+    middleware/auth.ts — requireAuth preHandler (verifies JWT, populates request.user)
+prisma/
+  schema.prisma        — User, DiaryDay, UserSettings, WeightEntry, WeightCheckpoint, CustomFood
+```
 
-**POST (Firebase ID token required in `Authorization: Bearer <token>`)**
-- `POST /` with `{ food: string }` — AI macro breakdown of a described meal → `{ items: [{name, kcal, protein, carbs, fat, satfat, fiber, ultra}] }`
-- `POST /` with `{ type: "suggest", remaining: {kcal, protein, carbs, fat} }` — AI meal suggestions for remaining macros → `{ suggestions: [{name, description, kcal, protein, carbs, fat}] }`
-- `POST /` with `{ type: "plan", kcal, protein, carbs, fat, notes? }` — AI meal plan for given targets → same `suggestions` shape
+### Auth flow
 
-### Key implementation details
+1. Client sends Firebase ID token to `POST /auth/login`
+2. Server verifies via `identitytoolkit.googleapis.com/v1/accounts:lookup` (no Firebase Admin SDK)
+3. Upserts User in PostgreSQL
+4. Returns access token (1h, `{ sub: uid, email }`) + sets httpOnly refresh cookie (30d)
+5. On 401, client calls `POST /auth/refresh` (uses cookie) to get a new access token
 
-- **Auth**: Firebase tokens are verified by calling `identitytoolkit.googleapis.com/v1/accounts:lookup` (no Firebase Admin SDK). GET routes skip auth entirely.
-- **Rate limiting**: In-memory, per Firebase UID, 30 requests/hour. Resets after 1-hour window. Not persistent across restarts.
-- **Food data shape**: `wfaToOff()` maps wilo-foods-api food records to the `OFFProduct` shape expected by `wilowilo-pwa`'s `foodDatabaseService.ts`. The `unique_scans_n` field is faked to influence sort order (verified foods rank highest).
-- **Cache**: wilo-foods-api responses cached in-memory for 5 minutes.
-- **CORS**: Hardcoded allowlist — add new origins to `ALLOWED_ORIGINS` array.
-- **AI model**: `claude-haiku-4-5-20251001`, max 800 tokens. All three AI prompts return JSON only (no markdown).
+### Key endpoint: GET /init
 
-### Deployment
+Returns all user data in one shot: `{ settings, today, history, weights, checkpoints, customFoods }`. Called by the PWA on boot to hydrate all stores.
 
-Fly.io app `wilowilo-api`, region `fra`, 256MB shared VM. Auto-start/stop enabled (cold starts possible). Deploy with `fly deploy` from the repo root.
+### One-time migration endpoint: POST /admin/migrate
+
+Enabled only when `MIGRATION_SECRET` env var is set. Accepts `{ uid, email, data: <Firebase tracker JSON> }` with `x-migration-secret` header. Used for one-time Firebase RTDB → PostgreSQL data migration.
+
+### AI endpoints (POST /)
+
+Legacy root endpoint for backward compat. Verifies Firebase token directly (no macro-api session required). Rate limit: 30 req/hour per UID (in-memory, resets on restart).
+
+AI routes under `/food`:
+- `POST /ai/analyze` — macro breakdown of described meal
+- `POST /ai/suggest` — meal suggestions for remaining macros
+- `POST /ai/plan` — full day meal plan
+
+### Food search
+
+`GET /food/search?q=` proxies to wilo-foods-api and maps results to `OFFProduct` shape via `wfaToOff()`. Responses cached in-memory for 5 minutes.
