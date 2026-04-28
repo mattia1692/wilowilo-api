@@ -146,6 +146,49 @@ export async function aiAnalyze(food: string) {
   return callClaude(MACRO_SYSTEM, food);
 }
 
+export async function aiAnalyzeUnified(
+  food: string | undefined,
+  images: { base64: string; mediaType: string }[] | undefined,
+) {
+  const hasImages = images && images.length > 0;
+  const hasText = food && food.trim().length > 0;
+
+  let userContent: unknown;
+  if (hasImages) {
+    const blocks: unknown[] = images.map((img) => ({
+      type: 'image',
+      source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
+    }));
+    blocks.push({
+      type: 'text',
+      text: hasText
+        ? `Analizza le foto e il seguente pasto: ${food}`
+        : 'Analizza le foto e stima i valori nutrizionali degli alimenti visibili.',
+    });
+    userContent = blocks;
+  } else {
+    userContent = food!;
+  }
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1000,
+      system: MACRO_SYSTEM,
+      messages: [{ role: 'user', content: userContent }],
+    }),
+  });
+  const data = await response.json() as { content?: { type: string; text: string }[] };
+  const text = data.content?.find((b) => b.type === 'text')?.text || '{"items":[]}';
+  return JSON.parse(text.replace(/```json|```/g, '').trim());
+}
+
 export async function aiAnalyzePhoto(image: string, mediaType: string) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

@@ -47,4 +47,14 @@ export const aiPhotoSchema = z.object({
   mediaType: z.enum(['image/jpeg', 'image/png', 'image/webp']).default('image/jpeg'),
 });
 
+export const aiUnifiedSchema = z.object({
+  food: z.string().max(1000).optional(),
+  images: z.array(z.object({
+    base64: z.string().min(1),
+    mediaType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  })).max(5).optional(),
+}).refine((d) => (d.food && d.food.trim().length > 0) || (d.images && d.images.length > 0), {
+  message: 'Fornisci testo o almeno una foto',
+});
+
 export type CustomFoodBody = z.infer<typeof customFoodBodySchema>;
