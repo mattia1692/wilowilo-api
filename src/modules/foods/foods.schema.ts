@@ -58,3 +58,8 @@ export const aiUnifiedSchema = z.object({
 });
 
 export type CustomFoodBody = z.infer<typeof customFoodBodySchema>;
+
+export const savedMealBodySchema = z.object({
+  name: z.string().min(1).max(100),
+  items: z.array(z.record(z.unknown())),
+});

@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../../shared/middleware/auth';
-import { customFoodBodySchema, idParamSchema, aiAnalyzeSchema, aiSuggestSchema, aiPlanSchema, aiPhotoSchema, aiUnifiedSchema } from './foods.schema';
+import { customFoodBodySchema, idParamSchema, aiAnalyzeSchema, aiSuggestSchema, aiPlanSchema, aiPhotoSchema, aiUnifiedSchema, savedMealBodySchema } from './foods.schema';
 import {
   getCustomFoods, upsertCustomFood, deleteCustomFood,
+  getSavedMeals, upsertSavedMeal, deleteSavedMeal,
   searchFoods, searchFoodsExtended, lookupBarcode,
   aiAnalyze, aiSuggest, aiPlan, aiAnalyzePhoto, aiAnalyzeUnified, checkAiRate,
 } from './foods.service';
@@ -62,6 +63,29 @@ export async function foodsRoutes(fastify: FastifyInstance) {
       if (!parsed.success) throw new ValidationError('ID non valido');
 
       await deleteCustomFood(fastify.prisma, userId, parsed.data.id);
+      return reply.status(204).send();
+    });
+
+    // PUT /food/meals/:id — upsert pasto salvato
+    authed.put('/meals/:id', async (request, reply) => {
+      const userId = request.user.sub;
+      const paramsParsed = idParamSchema.safeParse(request.params);
+      if (!paramsParsed.success) throw new ValidationError('ID non valido');
+
+      const bodyParsed = savedMealBodySchema.safeParse(request.body);
+      if (!bodyParsed.success) throw new ValidationError(bodyParsed.error.issues[0]?.message ?? 'Dati non validi');
+
+      const meal = await upsertSavedMeal(fastify.prisma, userId, paramsParsed.data.id, bodyParsed.data.name, bodyParsed.data.items);
+      return reply.send(meal);
+    });
+
+    // DELETE /food/meals/:id — elimina pasto salvato
+    authed.delete('/meals/:id', async (request, reply) => {
+      const userId = request.user.sub;
+      const parsed = idParamSchema.safeParse(request.params);
+      if (!parsed.success) throw new ValidationError('ID non valido');
+
+      await deleteSavedMeal(fastify.prisma, userId, parsed.data.id);
       return reply.status(204).send();
     });
 

@@ -27,6 +27,33 @@ export async function deleteCustomFood(prisma: PrismaClient, userId: string, id:
   await prisma.customFood.deleteMany({ where: { id, userId } });
 }
 
+// ── Saved meals (named collections of FoodItems) ───────────────────────────────
+
+export async function getSavedMeals(prisma: PrismaClient, userId: string) {
+  return prisma.savedMeal.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+export async function upsertSavedMeal(
+  prisma: PrismaClient,
+  userId: string,
+  id: string,
+  name: string,
+  items: object,
+) {
+  return prisma.savedMeal.upsert({
+    where: { id },
+    create: { id, userId, name, items },
+    update: { name, items },
+  });
+}
+
+export async function deleteSavedMeal(prisma: PrismaClient, userId: string, id: string) {
+  await prisma.savedMeal.deleteMany({ where: { id, userId } });
+}
+
 // ── Wilo Foods API proxy ───────────────────────────────────────────────────────
 
 const WFA_URL = process.env.WILO_FOODS_API_URL || 'https://wilo-foods-api-production.up.railway.app';

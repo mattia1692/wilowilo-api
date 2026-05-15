@@ -16,6 +16,7 @@ model User {
   weights     WeightEntry[]
   checkpoints WeightCheckpoint[]
   customFoods CustomFood[]
+  savedMeals  SavedMeal[]
 }
 
 model DiaryDay {
@@ -80,6 +81,17 @@ model CustomFood {
   name      String
   brand     String?
   per100g   Json                             // { kcal, protein, carbs, fat, satfat, fiber }
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model SavedMeal {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  items     Json                             // FoodItem[]
   createdAt DateTime @default(now())
 
   @@index([userId])

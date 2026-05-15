@@ -9,7 +9,7 @@ import { settingsRoutes } from './modules/settings/settings.routes';
 import { foodsRoutes } from './modules/foods/foods.routes';
 import { getToday, getHistory } from './modules/diary/diary.service';
 import { getWeights, getCheckpoints } from './modules/weight/weight.service';
-import { getCustomFoods } from './modules/foods/foods.service';
+import { getCustomFoods, getSavedMeals } from './modules/foods/foods.service';
 import { getSettings } from './modules/settings/settings.service';
 import { requireAuth } from './shared/middleware/auth';
 import { AppError } from './shared/errors';
@@ -40,15 +40,16 @@ export async function buildApp(): Promise<FastifyInstance> {
   // ── Init endpoint — carica tutti i dati utente in una sola chiamata ─────────
   fastify.get('/init', { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.user.sub;
-    const [settings, today, history, weights, checkpoints, customFoods] = await Promise.all([
+    const [settings, today, history, weights, checkpoints, customFoods, savedMeals] = await Promise.all([
       getSettings(fastify.prisma, userId),
       getToday(fastify.prisma, userId),
       getHistory(fastify.prisma, userId),
       getWeights(fastify.prisma, userId),
       getCheckpoints(fastify.prisma, userId),
       getCustomFoods(fastify.prisma, userId),
+      getSavedMeals(fastify.prisma, userId),
     ]);
-    return reply.send({ settings, today, history, weights, checkpoints, customFoods });
+    return reply.send({ settings, today, history, weights, checkpoints, customFoods, savedMeals });
   });
 
   // Module routes
