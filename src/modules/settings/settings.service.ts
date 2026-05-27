@@ -6,9 +6,10 @@ export async function getSettings(prisma: PrismaClient, userId: string) {
 }
 
 export async function patchSettings(prisma: PrismaClient, userId: string, patch: SettingsPatch) {
-  const { meals, ...rest } = patch;
+  const { meals, mealTimes, ...rest } = patch;
   const data: Record<string, unknown> = { ...rest };
   if (meals !== undefined) data['meals'] = meals;
+  if (mealTimes !== undefined) data['mealTimes'] = mealTimes;
 
   return prisma.userSettings.upsert({
     where: { userId },

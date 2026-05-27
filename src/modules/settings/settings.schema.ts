@@ -9,6 +9,7 @@ export const settingsPatchSchema = z.object({
   fiber: z.number().min(0).optional(),
   waterTarget: z.number().int().min(0).optional(),
   meals: z.array(z.string()).optional(),
+  mealTimes: z.record(z.string()).optional(),
   sheetsUrl: z.string().optional(),
   lang: z.string().optional(),
   weightHidden: z.boolean().optional(),

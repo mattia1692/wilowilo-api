@@ -44,6 +44,7 @@ model UserSettings {
   fiber           Float   @default(0)
   waterTarget     Int     @default(8)
   meals           Json    @default("[]")    // string[]
+  mealTimes       Json    @default("{}")    // Record<string, string>
   sheetsUrl       String  @default("")
   lang            String  @default("it")
   weightHidden    Boolean @default(false)
