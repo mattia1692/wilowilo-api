@@ -17,6 +17,7 @@ model User {
   checkpoints WeightCheckpoint[]
   customFoods CustomFood[]
   savedMeals  SavedMeal[]
+  activities  Activity[]
 }
 
 model DiaryDay {
@@ -94,6 +95,26 @@ model SavedMeal {
   name      String
   items     Json                             // FoodItem[]
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Activity {
+  id          String   @id                  // UUID generato dal client
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        String                        // YYYY-MM-DD
+  time        String?                       // HH:MM
+  type        String                        // corsa | camminata | bici | palestra | nuoto | yoga | trekking | custom
+  name        String
+  icon        String
+  color       String
+  duration    Int                           // minuti
+  intensity   String                        // leggera | media | intensa
+  distance    Float?                        // km (opzionale)
+  kcal        Int
+  addToBudget Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   @@index([userId])
 }
