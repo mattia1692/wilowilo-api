@@ -25,8 +25,9 @@ export const updateItemBodySchema = z.object({
 
 export const dayMetaBodySchema = z.object({
   hunger: z.number().int().min(1).max(6).optional(),
-  mood: z.number().int().min(1).max(6).optional(),
-  water: z.number().int().min(0).optional(),
+  mood:   z.number().int().min(1).max(6).optional(),
+  water:  z.number().int().min(0).optional(),
+  steps:  z.number().int().min(0).optional(),
 });
 
 export const setDayItemsBodySchema = z.object({
