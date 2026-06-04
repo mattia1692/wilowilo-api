@@ -1,11 +1,19 @@
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../../shared/middleware/auth';
 import { activityBodySchema, idParamSchema } from './activity.schema';
-import { upsertActivity, deleteActivity } from './activity.service';
+import { upsertActivity, deleteActivity, aiAnalyzeActivity } from './activity.service';
 import { ValidationError } from '../../shared/errors';
 
 export async function activityRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', requireAuth);
+
+  // POST /activities/ai/analyze — interpreta testo libero → estrae tipo, durata, intensità
+  fastify.post('/ai/analyze', async (request, reply) => {
+    const { text } = request.body as { text?: string };
+    if (!text?.trim()) throw new ValidationError('Testo mancante');
+    const result = await aiAnalyzeActivity(text.trim());
+    return reply.send(result);
+  });
 
   // PUT /activities/:id — upsert attività
   fastify.put('/:id', async (request, reply) => {
