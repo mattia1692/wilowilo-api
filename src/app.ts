@@ -8,11 +8,13 @@ import { weightRoutes } from './modules/weight/weight.routes';
 import { settingsRoutes } from './modules/settings/settings.routes';
 import { foodsRoutes } from './modules/foods/foods.routes';
 import { activityRoutes } from './modules/activity/activity.routes';
+import { workoutRoutes } from './modules/workout/workout.routes';
 import { getToday, getHistory } from './modules/diary/diary.service';
 import { getWeights, getCheckpoints } from './modules/weight/weight.service';
 import { getCustomFoods, getSavedMeals } from './modules/foods/foods.service';
 import { getSettings } from './modules/settings/settings.service';
 import { getActivities } from './modules/activity/activity.service';
+import { getWorkoutNotes } from './modules/workout/workout.service';
 import { requireAuth } from './shared/middleware/auth';
 import { AppError } from './shared/errors';
 import type { FastifyInstance } from 'fastify';
@@ -42,7 +44,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // ── Init endpoint — carica tutti i dati utente in una sola chiamata ─────────
   fastify.get('/init', { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.user.sub;
-    const [settings, today, history, weights, checkpoints, customFoods, savedMeals, activities] = await Promise.all([
+    const [settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes] = await Promise.all([
       getSettings(fastify.prisma, userId),
       getToday(fastify.prisma, userId),
       getHistory(fastify.prisma, userId),
@@ -51,8 +53,9 @@ export async function buildApp(): Promise<FastifyInstance> {
       getCustomFoods(fastify.prisma, userId),
       getSavedMeals(fastify.prisma, userId),
       getActivities(fastify.prisma, userId),
+      getWorkoutNotes(fastify.prisma, userId),
     ]);
-    return reply.send({ settings, today, history, weights, checkpoints, customFoods, savedMeals, activities });
+    return reply.send({ settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes });
   });
 
   // Module routes
@@ -62,6 +65,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(settingsRoutes, { prefix: '/settings' });
   await fastify.register(foodsRoutes, { prefix: '/food' });
   await fastify.register(activityRoutes, { prefix: '/activities' });
+  await fastify.register(workoutRoutes, { prefix: '/workout' });
 
   // ── One-time Firebase → PostgreSQL migration endpoint ─────────────────────
   // Enabled only when MIGRATION_SECRET env var is set.
