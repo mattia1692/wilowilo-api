@@ -5,6 +5,7 @@ import {
   getCustomFoods, upsertCustomFood, deleteCustomFood,
   getSavedMeals, upsertSavedMeal, deleteSavedMeal,
   searchFoods, searchFoodsExtended, lookupBarcode,
+  logSearchMiss,
   aiAnalyze, aiSuggest, aiPlan, aiAnalyzePhoto, aiAnalyzeUnified, checkAiRate,
 } from './foods.service';
 import { ValidationError, RateLimitError } from '../../shared/errors';
@@ -30,6 +31,16 @@ export async function foodsRoutes(fastify: FastifyInstance) {
     const clean = barcode.replace(/[^0-9]/g, '');
     if (!clean) return reply.send({ products: [] });
     return reply.send(await lookupBarcode(clean));
+  });
+
+  // POST /food/search-miss — log ricerca senza risultati (fire & forget dal client)
+  fastify.post('/search-miss', async (request, reply) => {
+    const { query, commonCount = 0, remoteCount = 0 } = (request.body ?? {}) as {
+      query?: string; commonCount?: number; remoteCount?: number;
+    };
+    if (!query?.trim() || query.trim().length < 3) return reply.status(204).send();
+    logSearchMiss(fastify.prisma, query, Number(commonCount) || 0, Number(remoteCount) || 0).catch(() => {});
+    return reply.status(204).send();
   });
 
   // ── Custom foods (auth required) ──────────────────────────────────────────────

@@ -133,3 +133,14 @@ model WorkoutNote {
 
   @@index([userId])
 }
+
+model FoodSearchMiss {
+  id          Int      @id @default(autoincrement())
+  query       String                       // termine cercato (lowercase, trimmed)
+  commonCount Int      @default(0)         // risultati locali trovati
+  remoteCount Int      @default(0)         // risultati WFA trovati
+  createdAt   DateTime @default(now())
+
+  @@index([query])
+  @@index([createdAt])
+}

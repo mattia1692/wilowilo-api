@@ -27,6 +27,19 @@ export async function deleteCustomFood(prisma: PrismaClient, userId: string, id:
   await prisma.customFood.deleteMany({ where: { id, userId } });
 }
 
+// ── Food search miss log ───────────────────────────────────────────────────────
+
+export async function logSearchMiss(
+  prisma: PrismaClient,
+  query: string,
+  commonCount: number,
+  remoteCount: number,
+) {
+  await prisma.foodSearchMiss.create({
+    data: { query: query.trim().toLowerCase().slice(0, 200), commonCount, remoteCount },
+  });
+}
+
 // ── Saved meals (named collections of FoodItems) ───────────────────────────────
 
 export async function getSavedMeals(prisma: PrismaClient, userId: string) {
