@@ -19,6 +19,7 @@ model User {
   savedMeals   SavedMeal[]
   activities   Activity[]
   workoutNotes WorkoutNote[]
+  supplements  Supplement[]
 }
 
 model DiaryDay {
@@ -129,6 +130,22 @@ model WorkoutNote {
   title     String?                       // es. "Giorno A - Push"
   exercises Json                          // WorkoutExercise[]
   notes     String?                       // note libere
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Supplement {
+  id        String   @id                  // UUID generato dal client
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      String                        // YYYY-MM-DD
+  time      String?                       // HH:MM
+  kind      String                        // farmaco | integratore
+  name      String
+  quantity  Float
+  unit      String                        // mg | ml | g
+  kcal      Float?                        // opzionale, solo integratori
   createdAt DateTime @default(now())
 
   @@index([userId])
