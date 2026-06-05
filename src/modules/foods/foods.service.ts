@@ -71,7 +71,7 @@ export async function deleteSavedMeal(prisma: PrismaClient, userId: string, id: 
 
 const WFA_URL = process.env.WILO_FOODS_API_URL || 'https://wilo-foods-api-production.up.railway.app';
 const WFA_KEY = process.env.WILO_FOODS_API_KEY || '';
-const WFA_TIMEOUT = 6000;
+const WFA_TIMEOUT = 3000;
 
 const wfaCache = new Map<string, { data: unknown[]; ts: number }>();
 const WFA_CACHE_TTL = 5 * 60 * 1000;
