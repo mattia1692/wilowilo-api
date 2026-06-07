@@ -59,11 +59,12 @@ model UserSettings {
 }
 
 model WeightEntry {
-  id     Int    @id @default(autoincrement())
+  id     Int     @id @default(autoincrement())
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   date   String                              // YYYY-MM-DD
   weight Float
+  note   String?
 
   @@unique([userId, date])
   @@index([userId])

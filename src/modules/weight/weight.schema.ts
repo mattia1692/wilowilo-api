@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const weightBodySchema = z.object({
   weight: z.number().positive(),
+  note: z.string().optional(),
 });
 
 export const checkpointBodySchema = z.object({

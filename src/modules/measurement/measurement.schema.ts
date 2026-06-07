@@ -4,7 +4,6 @@ const MEASUREMENT_TYPES = [
   'vita', 'fianchi', 'petto', 'bicipite', 'coscia', 'collo', 'spalle', 'polpaccio',
   'grasso_corp', 'massa_musc', 'idratazione',
   'freq_riposo', 'pressione_sis', 'pressione_dia',
-  'peso',
 ] as const;
 
 const UNITS = ['cm', '%', 'bpm', 'mmHg', 'kg'] as const;

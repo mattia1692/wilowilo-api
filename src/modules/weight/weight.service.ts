@@ -1,11 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
 import type { CheckpointBody, CheckpointPatch } from './weight.schema';
 
-export async function upsertWeight(prisma: PrismaClient, userId: string, date: string, weight: number) {
+export async function upsertWeight(prisma: PrismaClient, userId: string, date: string, weight: number, note?: string) {
   return prisma.weightEntry.upsert({
     where: { userId_date: { userId, date } },
-    create: { userId, date, weight },
-    update: { weight },
+    create: { userId, date, weight, note },
+    update: { weight, note },
   });
 }
 

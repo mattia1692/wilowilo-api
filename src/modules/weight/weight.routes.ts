@@ -22,7 +22,7 @@ export async function weightRoutes(fastify: FastifyInstance) {
     const bodyParsed = weightBodySchema.safeParse(request.body);
     if (!bodyParsed.success) throw new ValidationError('Peso non valido');
 
-    const entry = await upsertWeight(fastify.prisma, userId, paramsParsed.data.date, bodyParsed.data.weight);
+    const entry = await upsertWeight(fastify.prisma, userId, paramsParsed.data.date, bodyParsed.data.weight, bodyParsed.data.note);
     return reply.send(entry);
   });
 
