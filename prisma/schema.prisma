@@ -20,6 +20,7 @@ model User {
   activities   Activity[]
   workoutNotes WorkoutNote[]
   supplements  Supplement[]
+  measurements BodyMeasurement[]
 }
 
 model DiaryDay {
@@ -149,6 +150,21 @@ model Supplement {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+model BodyMeasurement {
+  id        String   @id                  // UUID generato dal client
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      String                        // YYYY-MM-DD
+  type      String                        // vita | fianchi | petto | bicipite | coscia | collo | spalle | polpaccio | grasso_corp | massa_musc | idratazione | freq_riposo | pressione_sis | pressione_dia | peso
+  value     Float
+  unit      String                        // cm | % | bpm | mmHg | kg
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, date])
 }
 
 model FoodSearchMiss {
