@@ -15,12 +15,13 @@ model User {
   settings     UserSettings?
   weights      WeightEntry[]
   checkpoints  WeightCheckpoint[]
-  customFoods  CustomFood[]
-  savedMeals   SavedMeal[]
-  activities   Activity[]
-  workoutNotes WorkoutNote[]
-  supplements  Supplement[]
-  measurements BodyMeasurement[]
+  customFoods      CustomFood[]
+  savedMeals       SavedMeal[]
+  activities       Activity[]
+  workoutNotes     WorkoutNote[]
+  supplements      Supplement[]
+  measurements     BodyMeasurement[]
+  targetSnapshots  TargetSnapshot[]
 }
 
 model DiaryDay {
@@ -166,6 +167,23 @@ model BodyMeasurement {
 
   @@index([userId])
   @@index([userId, date])
+}
+
+model TargetSnapshot {
+  id            Int      @id @default(autoincrement())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  effectiveDate String                        // YYYY-MM-DD — giorno da cui questi target sono in vigore
+  kcal          Float
+  protein       Float
+  carbs         Float
+  fat           Float
+  satfat        Float
+  fiber         Float
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, effectiveDate])
+  @@index([userId])
 }
 
 model FoodSearchMiss {

@@ -14,7 +14,7 @@ import { measurementRoutes } from './modules/measurement/measurement.routes';
 import { getToday, getHistory } from './modules/diary/diary.service';
 import { getWeights, getCheckpoints } from './modules/weight/weight.service';
 import { getCustomFoods, getSavedMeals } from './modules/foods/foods.service';
-import { getSettings } from './modules/settings/settings.service';
+import { getSettings, getTargetHistory } from './modules/settings/settings.service';
 import { getActivities } from './modules/activity/activity.service';
 import { getWorkoutNotes } from './modules/workout/workout.service';
 import { getSupplements } from './modules/supplement/supplement.service';
@@ -48,7 +48,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // ── Init endpoint — carica tutti i dati utente in una sola chiamata ─────────
   fastify.get('/init', { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.user.sub;
-    const [settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements] = await Promise.all([
+    const [settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements, targetHistory] = await Promise.all([
       getSettings(fastify.prisma, userId),
       getToday(fastify.prisma, userId),
       getHistory(fastify.prisma, userId),
@@ -60,8 +60,9 @@ export async function buildApp(): Promise<FastifyInstance> {
       getWorkoutNotes(fastify.prisma, userId),
       getSupplements(fastify.prisma, userId),
       getMeasurements(fastify.prisma, userId),
+      getTargetHistory(fastify.prisma, userId),
     ]);
-    return reply.send({ settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements });
+    return reply.send({ settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements, targetHistory });
   });
 
   // Module routes
