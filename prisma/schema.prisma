@@ -186,6 +186,25 @@ model TargetSnapshot {
   @@index([userId])
 }
 
+model Exercise {
+  id               Int      @id @default(autoincrement())
+  slug             String   @unique
+  name             String
+  primaryMuscles   String[]
+  secondaryMuscles String[]
+  equipment        String[]
+  movementPattern  String[]
+  difficulty       String
+  durationSeconds  Float
+  tags             String[]
+  translations     Json     @default("{}")
+  posterUrl        String
+  videoUrl         String
+  createdAt        DateTime @default(now())
+
+  @@index([slug])
+}
+
 model FoodSearchMiss {
   id          Int      @id @default(autoincrement())
   query       String                       // termine cercato (lowercase, trimmed)

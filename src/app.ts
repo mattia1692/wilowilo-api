@@ -11,6 +11,7 @@ import { activityRoutes } from './modules/activity/activity.routes';
 import { workoutRoutes } from './modules/workout/workout.routes';
 import { supplementRoutes } from './modules/supplement/supplement.routes';
 import { measurementRoutes } from './modules/measurement/measurement.routes';
+import { exerciseRoutes } from './modules/exercises/exercises.routes';
 import { getToday, getHistory } from './modules/diary/diary.service';
 import { getWeights, getCheckpoints } from './modules/weight/weight.service';
 import { getCustomFoods, getSavedMeals } from './modules/foods/foods.service';
@@ -75,6 +76,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(workoutRoutes, { prefix: '/workout' });
   await fastify.register(supplementRoutes, { prefix: '/supplements' });
   await fastify.register(measurementRoutes, { prefix: '/measurements' });
+  await fastify.register(exerciseRoutes, { prefix: '/exercises' });
 
   // ── One-time Firebase → PostgreSQL migration endpoint ─────────────────────
   // Enabled only when MIGRATION_SECRET env var is set.
