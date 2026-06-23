@@ -10,11 +10,13 @@ const workoutSetSchema = z.object({
 });
 
 const workoutExerciseSchema = z.object({
-  name:        z.string().min(1),
-  type:        z.enum(['strength', 'cardio']).optional(),
-  sets:        z.array(workoutSetSchema).min(1),
-  restSeconds: z.number().int().min(0).optional(),
-  notes:       z.string().optional(),
+  name:         z.string().min(1),
+  type:         z.enum(['strength', 'cardio']).optional(),
+  sets:         z.array(workoutSetSchema).min(1),
+  restSeconds:  z.number().int().min(0).optional(),
+  notes:        z.string().optional(),
+  exerciseSlug: z.string().optional(),
+  posterUrl:    z.string().optional(),
 });
 
 export const workoutNoteBodySchema = z.object({
