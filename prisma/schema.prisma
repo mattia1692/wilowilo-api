@@ -72,12 +72,13 @@ model WeightEntry {
 }
 
 model WeightCheckpoint {
-  id           String  @id                  // timestamp-based, generato dal client
+  id           String   @id                  // timestamp-based, generato dal client
   userId       String
-  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   date         String                        // YYYY-MM-DD
   targetWeight Float
   label        String?
+  benefits     String[] @default([])
 
   @@index([userId])
 }

@@ -9,6 +9,7 @@ export const checkpointBodySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   targetWeight: z.number().positive(),
   label: z.string().optional(),
+  benefits: z.array(z.string()).optional(),
 });
 
 export const checkpointPatchSchema = checkpointBodySchema.partial();
