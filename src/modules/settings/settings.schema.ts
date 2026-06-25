@@ -16,6 +16,8 @@ export const settingsPatchSchema = z.object({
   wizardCompleted: z.boolean().optional(),
   startWeight: z.number().positive().nullable().optional(),
   goalWeight: z.number().positive().nullable().optional(),
+  weightObjective: z.string().nullable().optional(),
+  goalDate: z.string().nullable().optional(),
 });
 
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>;

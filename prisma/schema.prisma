@@ -55,8 +55,10 @@ model UserSettings {
   lang            String  @default("it")
   weightHidden    Boolean @default(false)
   wizardCompleted Boolean @default(false)
-  startWeight     Float?
-  goalWeight      Float?
+  startWeight      Float?
+  goalWeight       Float?
+  weightObjective  String?
+  goalDate         String?
 }
 
 model WeightEntry {
