@@ -22,6 +22,7 @@ model User {
   supplements      Supplement[]
   measurements     BodyMeasurement[]
   targetSnapshots  TargetSnapshot[]
+  goals            Goal[]
 }
 
 model DiaryDay {
@@ -60,6 +61,10 @@ model UserSettings {
   goalWeight       Float?
   weightObjective  String?
   goalDate         String?
+  height           Int?
+  age              Int?
+  gender           String?
+  activityLevel    Float?
 }
 
 model WeightEntry {
@@ -189,6 +194,32 @@ model TargetSnapshot {
 
   @@unique([userId, effectiveDate])
   @@index([userId])
+}
+
+model Goal {
+  id            String   @id
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain        String
+  type          String
+  nature        String
+  direction     String
+  title         String
+  targetValue   Float
+  unit          String
+  period        String
+  baselineValue Float?
+  startDate     String
+  targetDate    String?
+  derivedFrom   String?
+  exerciseId    String?
+  status        String   @default("active")
+  config        Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, status])
 }
 
 model Exercise {

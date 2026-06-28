@@ -18,6 +18,10 @@ export const settingsPatchSchema = z.object({
   goalWeight: z.number().positive().nullable().optional(),
   weightObjective: z.string().nullable().optional(),
   goalDate: z.string().nullable().optional(),
+  height: z.number().int().min(100).max(250).nullable().optional(),
+  age: z.number().int().min(10).max(120).nullable().optional(),
+  gender: z.string().nullable().optional(),
+  activityLevel: z.number().min(1.0).max(2.5).nullable().optional(),
 });
 
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>;

@@ -12,6 +12,8 @@ import { workoutRoutes } from './modules/workout/workout.routes';
 import { supplementRoutes } from './modules/supplement/supplement.routes';
 import { measurementRoutes } from './modules/measurement/measurement.routes';
 import { exerciseRoutes } from './modules/exercises/exercises.routes';
+import { goalRoutes } from './modules/goals/goals.routes';
+import { getGoals } from './modules/goals/goals.service';
 import { getToday, getHistory } from './modules/diary/diary.service';
 import { getWeights, getCheckpoints } from './modules/weight/weight.service';
 import { getCustomFoods, getSavedMeals } from './modules/foods/foods.service';
@@ -49,7 +51,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // ── Init endpoint — carica tutti i dati utente in una sola chiamata ─────────
   fastify.get('/init', { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.user.sub;
-    const [settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements, targetHistory] = await Promise.all([
+    const [settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements, targetHistory, goals] = await Promise.all([
       getSettings(fastify.prisma, userId),
       getToday(fastify.prisma, userId),
       getHistory(fastify.prisma, userId),
@@ -62,8 +64,9 @@ export async function buildApp(): Promise<FastifyInstance> {
       getSupplements(fastify.prisma, userId),
       getMeasurements(fastify.prisma, userId),
       getTargetHistory(fastify.prisma, userId),
+      getGoals(fastify.prisma, userId),
     ]);
-    return reply.send({ settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements, targetHistory });
+    return reply.send({ settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements, targetHistory, goals });
   });
 
   // Module routes
@@ -77,6 +80,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(supplementRoutes, { prefix: '/supplements' });
   await fastify.register(measurementRoutes, { prefix: '/measurements' });
   await fastify.register(exerciseRoutes, { prefix: '/exercises' });
+  await fastify.register(goalRoutes, { prefix: '/goals' });
 
   // ── One-time Firebase → PostgreSQL migration endpoint ─────────────────────
   // Enabled only when MIGRATION_SECRET env var is set.
