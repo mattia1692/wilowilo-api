@@ -124,6 +124,7 @@ model Activity {
   distance    Float?                        // km (opzionale)
   kcal        Int
   addToBudget Boolean  @default(false)
+  exercises   Json?
   createdAt   DateTime @default(now())
 
   @@index([userId])
