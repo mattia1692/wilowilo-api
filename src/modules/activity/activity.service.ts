@@ -118,7 +118,7 @@ export async function getActivities(prisma: PrismaClient, userId: string) {
     select: {
       id: true, date: true, time: true, type: true, name: true,
       icon: true, color: true, duration: true, intensity: true,
-      distance: true, kcal: true, addToBudget: true,
+      distance: true, kcal: true, addToBudget: true, exercises: true,
     },
   });
 }
