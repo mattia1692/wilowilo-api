@@ -28,6 +28,22 @@ export async function activityRoutes(fastify: FastifyInstance) {
     return reply.send(activity);
   });
 
+  // PATCH /activities/:id — aggiorna parzialmente
+  fastify.patch('/:id', async (request, reply) => {
+    const userId = request.user.sub;
+    const paramsParsed = idParamSchema.safeParse(request.params);
+    if (!paramsParsed.success) throw new ValidationError('ID non valido');
+
+    const body = request.body as Record<string, unknown>;
+    const activity = await fastify.prisma.activity.updateMany({
+      where: { id: paramsParsed.data.id, userId },
+      data: body,
+    });
+    if (activity.count === 0) return reply.status(404).send({ error: 'Not found' });
+    const updated = await fastify.prisma.activity.findUnique({ where: { id: paramsParsed.data.id } });
+    return reply.send(updated);
+  });
+
   // DELETE /activities/:id — elimina attività
   fastify.delete('/:id', async (request, reply) => {
     const userId = request.user.sub;
