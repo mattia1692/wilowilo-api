@@ -45,8 +45,8 @@ export async function goalRoutes(fastify: FastifyInstance) {
     const userId = request.user.sub;
     const derived = deriveGoals({ ...body.data, userId });
 
-    // Delete existing derived goals and create new ones
-    await fastify.prisma.goal.deleteMany({ where: { userId, derivedFrom: { not: null } } });
+    // Delete ALL existing goals and create new ones
+    await fastify.prisma.goal.deleteMany({ where: { userId } });
 
     const northId = Date.now().toString();
     const goals = [];
@@ -58,6 +58,30 @@ export async function goalRoutes(fastify: FastifyInstance) {
         data: { id, userId, ...g, derivedFrom: i === 0 ? null : northId },
       });
       goals.push(saved);
+    }
+
+    // Sync targets in UserSettings from derived goals
+    const calGoal = derived.find(g => g.type === 'daily_calories');
+    const protGoal = derived.find(g => g.type === 'macro_protein');
+    const carbGoal = derived.find(g => g.type === 'macro_carbs');
+    const fatGoal = derived.find(g => g.type === 'macro_fat');
+    if (calGoal || protGoal || carbGoal || fatGoal) {
+      await fastify.prisma.userSettings.upsert({
+        where: { userId },
+        create: {
+          userId,
+          kcal: calGoal?.targetValue ?? 2000,
+          protein: protGoal?.targetValue ?? 120,
+          carbs: carbGoal?.targetValue ?? 200,
+          fat: fatGoal?.targetValue ?? 60,
+        },
+        update: {
+          ...(calGoal ? { kcal: calGoal.targetValue } : {}),
+          ...(protGoal ? { protein: protGoal.targetValue } : {}),
+          ...(carbGoal ? { carbs: carbGoal.targetValue } : {}),
+          ...(fatGoal ? { fat: fatGoal.targetValue } : {}),
+        },
+      });
     }
 
     return reply.send(goals);
