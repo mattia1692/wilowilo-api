@@ -11,7 +11,7 @@ export async function getGoals(prisma: PrismaClient, userId: string) {
 // Goal types that mirror into UserSettings, so DiaryPage/HistoryPage/PesoPage
 // stay in sync regardless of whether the goal was set via wizard, derive, or
 // manual add/edit in the Obiettivi page.
-async function syncSettingsFromGoal(prisma: PrismaClient, userId: string, goal: { type: string; targetValue: number; baselineValue: number | null; targetDate: string | null; status: string }) {
+async function syncSettingsFromGoal(prisma: PrismaClient, userId: string, goal: { type: string; targetValue: number; baselineValue: number | null; targetDate: string | null; direction: string; status: string }) {
   if (goal.status === 'archived') return;
   const updates: Record<string, unknown> = {};
   switch (goal.type) {
@@ -24,6 +24,7 @@ async function syncSettingsFromGoal(prisma: PrismaClient, userId: string, goal: 
       updates.goalWeight = goal.targetValue;
       if (goal.baselineValue != null) updates.startWeight = goal.baselineValue;
       updates.goalDate = goal.targetDate ?? null;
+      updates.weightObjective = goal.direction === 'reduce' ? 'dimagrimento' : goal.direction === 'reach' ? 'massa' : 'mantenimento';
       break;
     default:
       return;
