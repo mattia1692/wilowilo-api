@@ -8,18 +8,49 @@ export async function getGoals(prisma: PrismaClient, userId: string) {
   });
 }
 
+// Goal types that mirror into UserSettings, so DiaryPage/HistoryPage/PesoPage
+// stay in sync regardless of whether the goal was set via wizard, derive, or
+// manual add/edit in the Obiettivi page.
+async function syncSettingsFromGoal(prisma: PrismaClient, userId: string, goal: { type: string; targetValue: number; baselineValue: number | null; targetDate: string | null; status: string }) {
+  if (goal.status === 'archived') return;
+  const updates: Record<string, unknown> = {};
+  switch (goal.type) {
+    case 'daily_calories': updates.kcal = goal.targetValue; break;
+    case 'macro_protein': updates.protein = goal.targetValue; break;
+    case 'macro_carbs': updates.carbs = goal.targetValue; break;
+    case 'macro_fat': updates.fat = goal.targetValue; break;
+    case 'water_intake': updates.waterTarget = Math.round(goal.targetValue); break;
+    case 'target_weight':
+      updates.goalWeight = goal.targetValue;
+      if (goal.baselineValue != null) updates.startWeight = goal.baselineValue;
+      updates.goalDate = goal.targetDate ?? null;
+      break;
+    default:
+      return;
+  }
+  await prisma.userSettings.upsert({
+    where: { userId },
+    create: { userId, ...updates },
+    update: updates,
+  });
+}
+
 export async function upsertGoal(prisma: PrismaClient, userId: string, id: string, data: GoalBody) {
-  return prisma.goal.upsert({
+  const goal = await prisma.goal.upsert({
     where: { id },
     create: { id, userId, ...data },
     update: { ...data },
   });
+  await syncSettingsFromGoal(prisma, userId, goal);
+  return goal;
 }
 
 export async function patchGoal(prisma: PrismaClient, userId: string, id: string, data: GoalPatch) {
   const result = await prisma.goal.updateMany({ where: { id, userId }, data });
   if (result.count === 0) return null;
-  return prisma.goal.findUnique({ where: { id } });
+  const goal = await prisma.goal.findUnique({ where: { id } });
+  if (goal) await syncSettingsFromGoal(prisma, userId, goal);
+  return goal;
 }
 
 export async function deleteGoal(prisma: PrismaClient, userId: string, id: string) {
