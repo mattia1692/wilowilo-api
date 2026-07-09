@@ -21,6 +21,7 @@ import { getSettings, getTargetHistory } from './modules/settings/settings.servi
 import { getActivities } from './modules/activity/activity.service';
 import { getWorkoutNotes } from './modules/workout/workout.service';
 import { getSupplements } from './modules/supplement/supplement.service';
+import { getReminders, getPendingRemindersToday } from './modules/supplement/reminder.service';
 import { getMeasurements } from './modules/measurement/measurement.service';
 import { requireAuth } from './shared/middleware/auth';
 import { AppError } from './shared/errors';
@@ -51,7 +52,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // ── Init endpoint — carica tutti i dati utente in una sola chiamata ─────────
   fastify.get('/init', { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.user.sub;
-    const [settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements, targetHistory, goals] = await Promise.all([
+    const [settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements, targetHistory, goals, supplementReminders, pendingReminders] = await Promise.all([
       getSettings(fastify.prisma, userId),
       getToday(fastify.prisma, userId),
       getHistory(fastify.prisma, userId),
@@ -65,8 +66,10 @@ export async function buildApp(): Promise<FastifyInstance> {
       getMeasurements(fastify.prisma, userId),
       getTargetHistory(fastify.prisma, userId),
       getGoals(fastify.prisma, userId),
+      getReminders(fastify.prisma, userId),
+      getPendingRemindersToday(fastify.prisma, userId),
     ]);
-    return reply.send({ settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements, targetHistory, goals });
+    return reply.send({ settings, today, history, weights, checkpoints, customFoods, savedMeals, activities, workoutNotes, supplements, measurements, targetHistory, goals, supplementReminders, pendingReminders });
   });
 
   // Module routes

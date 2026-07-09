@@ -19,7 +19,8 @@ model User {
   savedMeals       SavedMeal[]
   activities       Activity[]
   workoutNotes     WorkoutNote[]
-  supplements      Supplement[]
+  supplements           Supplement[]
+  supplementReminders   SupplementReminder[]
   measurements     BodyMeasurement[]
   targetSnapshots  TargetSnapshot[]
   goals            Goal[]
@@ -149,19 +150,39 @@ model WorkoutNote {
 }
 
 model Supplement {
-  id        String   @id                  // UUID generato dal client
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date      String                        // YYYY-MM-DD
-  time      String?                       // HH:MM
-  kind      String                        // farmaco | integratore
-  name      String
-  quantity  Float
-  unit      String                        // mg | ml | g
-  kcal      Float?                        // opzionale, solo integratori
-  createdAt DateTime @default(now())
+  id         String   @id
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date       String                        // YYYY-MM-DD
+  time       String?                       // HH:MM
+  kind       String                        // farmaco | integratore
+  name       String
+  quantity   Float
+  unit       String                        // mg | ml | g
+  kcal       Float?
+  reminderId String?                       // se preso tramite reminder checkbox
+  createdAt  DateTime @default(now())
 
   @@index([userId])
+}
+
+model SupplementReminder {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  dosage    Float
+  unit      String                        // mg | ml | g | pezzi
+  kind      String   @default("integratore") // farmaco | integratore
+  note      String?
+  startDate String                        // YYYY-MM-DD
+  endDate   String?                       // null = indefinito
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, isActive])
 }
 
 model BodyMeasurement {
