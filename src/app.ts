@@ -6,6 +6,7 @@ import { authRoutes } from './modules/auth/auth.routes';
 import { diaryRoutes } from './modules/diary/diary.routes';
 import { weightRoutes } from './modules/weight/weight.routes';
 import { settingsRoutes } from './modules/settings/settings.routes';
+import { regimesRoutes } from './modules/settings/regimes.routes';
 import { foodsRoutes } from './modules/foods/foods.routes';
 import { activityRoutes } from './modules/activity/activity.routes';
 import { workoutRoutes } from './modules/workout/workout.routes';
@@ -77,6 +78,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(diaryRoutes, { prefix: '/diary' });
   await fastify.register(weightRoutes, { prefix: '/weight' });
   await fastify.register(settingsRoutes, { prefix: '/settings' });
+  await fastify.register(regimesRoutes, { prefix: '/regimes' });
   await fastify.register(foodsRoutes, { prefix: '/food' });
   await fastify.register(activityRoutes, { prefix: '/activities' });
   await fastify.register(workoutRoutes, { prefix: '/workout' });

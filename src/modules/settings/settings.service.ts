@@ -15,8 +15,24 @@ export async function getTargetHistory(prisma: PrismaClient, userId: string) {
   return prisma.targetSnapshot.findMany({
     where: { userId },
     orderBy: { effectiveDate: 'asc' },
-    select: { effectiveDate: true, kcal: true, protein: true, carbs: true, fat: true, satfat: true, fiber: true },
+    select: { id: true, effectiveDate: true, name: true, kcal: true, protein: true, carbs: true, fat: true, satfat: true, fiber: true },
   });
+}
+
+export async function upsertRegime(
+  prisma: PrismaClient,
+  userId: string,
+  data: { effectiveDate: string; name?: string; kcal: number; protein: number; carbs: number; fat: number; satfat: number; fiber: number },
+) {
+  return prisma.targetSnapshot.upsert({
+    where: { userId_effectiveDate: { userId, effectiveDate: data.effectiveDate } },
+    create: { userId, ...data },
+    update: { name: data.name ?? null, kcal: data.kcal, protein: data.protein, carbs: data.carbs, fat: data.fat, satfat: data.satfat, fiber: data.fiber },
+  });
+}
+
+export async function deleteRegime(prisma: PrismaClient, userId: string, id: number) {
+  await prisma.targetSnapshot.deleteMany({ where: { id, userId } });
 }
 
 export async function patchSettings(prisma: PrismaClient, userId: string, patch: SettingsPatch) {

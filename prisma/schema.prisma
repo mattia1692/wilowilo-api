@@ -205,6 +205,7 @@ model TargetSnapshot {
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   effectiveDate String                        // YYYY-MM-DD — giorno da cui questi target sono in vigore
+  name          String?                       // nome del regime (es. "Bulk", "Mantenimento")
   kcal          Float
   protein       Float
   carbs         Float
