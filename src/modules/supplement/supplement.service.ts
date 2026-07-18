@@ -7,7 +7,7 @@ export async function getSupplements(prisma: PrismaClient, userId: string) {
     orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
     select: {
       id: true, date: true, time: true, kind: true,
-      name: true, quantity: true, unit: true, kcal: true,
+      name: true, quantity: true, unit: true, kcal: true, reminderId: true,
     },
   });
 }
