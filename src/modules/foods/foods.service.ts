@@ -257,6 +257,7 @@ export async function aiAnalyzePhoto(image: string, mediaType: string) {
 
 const SMART_SCAN_SYSTEM = `Analizza l'immagine e classifica il suo contenuto in una di queste categorie:
 - "nutrition_label": una tabella nutrizionale o etichetta di un prodotto alimentare con valori per 100g (kcal, proteine, carboidrati, grassi, ecc.)
+- "recipe": una ricetta scritta, una lista di ingredienti con quantità (es: "200g pasta, 100g pomodoro"), un menu con porzioni, o qualsiasi testo che elenca ingredienti con grammi/ml/unità
 - "food": un singolo alimento fotografato (banana, petto di pollo, pane, formaggio, ecc.)
 - "dish": un piatto o pasto composto fotografato (pasta, insalata, pizza, pranzo con più componenti, ecc.)
 - "barcode": un codice a barre EAN/UPC visibile su un prodotto confezionato (senza tabella nutrizionale leggibile)
@@ -265,15 +266,24 @@ const SMART_SCAN_SYSTEM = `Analizza l'immagine e classifica il suo contenuto in 
 - "calorie_targets": un documento con obiettivi nutrizionali o prescrizione dietetica con macro/kcal
 - "unknown": immagine non pertinente, troppo sfocata, o non riconoscibile
 
-PRIORITÀ: se vedi una tabella nutrizionale con valori numerici (kcal, proteine, carboidrati, grassi), classifica SEMPRE come "nutrition_label" anche se c'è anche un barcode.
+PRIORITÀ:
+1. Se vedi una tabella nutrizionale con valori per 100g (kcal, proteine, carboidrati, grassi), classifica SEMPRE come "nutrition_label".
+2. Se vedi ingredienti elencati con quantità (grammi, ml, cucchiai, pezzi ecc.), classifica come "recipe" anche se il testo è parziale.
+
+Per il tipo "recipe":
+- Estrai ogni ingrediente con nome, quantità numerica e unità di misura
+- Stima le kcal per ogni ingrediente in base alla quantità (usa valori nutrizionali standard)
+- Calcola i totali sommando tutti gli ingredienti
+- Se non riesci a leggere bene le quantità, usa stime ragionevoli
 
 Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown.
 {
-  "type": "nutrition_label" | "food" | "dish" | "barcode" | "workout_plan" | "gym_session" | "calorie_targets" | "unknown",
-  "label": "titolo breve in italiano (es: Barretta proteica, Petto di pollo, Scheda palestra)",
+  "type": "nutrition_label" | "recipe" | "food" | "dish" | "barcode" | "workout_plan" | "gym_session" | "calorie_targets" | "unknown",
+  "label": "titolo breve in italiano (es: Barretta proteica, Petto di pollo, Pasta al pomodoro)",
   "description": "una frase in italiano che descrive cosa hai visto",
   "data": {
     per nutrition_label: { "name": "nome prodotto se visibile o null", "kcal": numero per 100g o null, "protein": numero per 100g o null, "carbs": numero per 100g o null, "fat": numero per 100g o null, "satfat": numero per 100g o null, "fiber": numero per 100g o null },
+    per recipe: { "dish_name": "nome del piatto o null", "servings": numero porzioni o null, "ingredients": [{ "name": "nome ingrediente", "quantity": numero, "unit": "g|ml|pz|cucchiai|tazze|ecc", "kcal": numero stimato }], "total_kcal": numero, "total_protein": numero, "total_carbs": numero, "total_fat": numero },
     per food/dish: { "description": "ingredienti visibili e porzioni stimate" },
     per barcode: { "barcode": "codice numerico se leggibile, altrimenti null" },
     per workout_plan: { "description": "esercizi, serie, ripetizioni estratti" },
@@ -293,7 +303,7 @@ export async function aiSmartScan(image: string, mediaType: string): Promise<unk
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 600,
+      max_tokens: 1400,
       system: SMART_SCAN_SYSTEM,
       messages: [{
         role: 'user',
