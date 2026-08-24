@@ -256,23 +256,27 @@ export async function aiAnalyzePhoto(image: string, mediaType: string) {
 }
 
 const SMART_SCAN_SYSTEM = `Analizza l'immagine e classifica il suo contenuto in una di queste categorie:
-- "food": un singolo alimento (banana, petto di pollo, pane, formaggio, ecc.)
-- "dish": un piatto o pasto composto (pasta, insalata, pizza, pranzo con più componenti, ecc.)
-- "barcode": un codice a barre EAN/UPC visibile sull'etichetta di un prodotto confezionato
-- "workout_plan": una scheda di allenamento scritta con esercizi, serie, ripetizioni (su carta, schermo o tabella)
-- "gym_session": il display di un macchinario da palestra con dati di sessione (calorie bruciate, tempo, distanza, velocità)
+- "nutrition_label": una tabella nutrizionale o etichetta di un prodotto alimentare con valori per 100g (kcal, proteine, carboidrati, grassi, ecc.)
+- "food": un singolo alimento fotografato (banana, petto di pollo, pane, formaggio, ecc.)
+- "dish": un piatto o pasto composto fotografato (pasta, insalata, pizza, pranzo con più componenti, ecc.)
+- "barcode": un codice a barre EAN/UPC visibile su un prodotto confezionato (senza tabella nutrizionale leggibile)
+- "workout_plan": una scheda di allenamento scritta con esercizi, serie, ripetizioni
+- "gym_session": il display di un macchinario da palestra con dati di sessione (calorie, tempo, distanza)
 - "calorie_targets": un documento con obiettivi nutrizionali o prescrizione dietetica con macro/kcal
 - "unknown": immagine non pertinente, troppo sfocata, o non riconoscibile
 
+PRIORITÀ: se vedi una tabella nutrizionale con valori numerici (kcal, proteine, carboidrati, grassi), classifica SEMPRE come "nutrition_label" anche se c'è anche un barcode.
+
 Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown.
 {
-  "type": "food" | "dish" | "barcode" | "workout_plan" | "gym_session" | "calorie_targets" | "unknown",
-  "label": "titolo breve in italiano (es: Petto di pollo, Scheda palestra, Barretta proteica)",
-  "description": "una frase in italiano che descrive cosa hai visto nell'immagine",
+  "type": "nutrition_label" | "food" | "dish" | "barcode" | "workout_plan" | "gym_session" | "calorie_targets" | "unknown",
+  "label": "titolo breve in italiano (es: Barretta proteica, Petto di pollo, Scheda palestra)",
+  "description": "una frase in italiano che descrive cosa hai visto",
   "data": {
-    per food/dish: { "description": "ingredienti visibili e porzioni stimate in italiano" },
-    per barcode: { "barcode": "codice numerico se chiaramente leggibile, altrimenti null" },
-    per workout_plan: { "description": "lista degli esercizi, serie e ripetizioni estratti" },
+    per nutrition_label: { "name": "nome prodotto se visibile o null", "kcal": numero per 100g o null, "protein": numero per 100g o null, "carbs": numero per 100g o null, "fat": numero per 100g o null, "satfat": numero per 100g o null, "fiber": numero per 100g o null },
+    per food/dish: { "description": "ingredienti visibili e porzioni stimate" },
+    per barcode: { "barcode": "codice numerico se leggibile, altrimenti null" },
+    per workout_plan: { "description": "esercizi, serie, ripetizioni estratti" },
     per gym_session: { "activityType": "tipo attività in italiano", "durationMin": numero o null, "kcal": numero o null },
     per calorie_targets: { "kcal": numero o null, "protein": numero o null, "carbs": numero o null, "fat": numero o null },
     per unknown: {}
