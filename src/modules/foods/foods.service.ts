@@ -255,6 +255,60 @@ export async function aiAnalyzePhoto(image: string, mediaType: string) {
   return JSON.parse(text.replace(/```json|```/g, '').trim());
 }
 
+const SMART_SCAN_SYSTEM = `Analizza l'immagine e classifica il suo contenuto in una di queste categorie:
+- "food": un singolo alimento (banana, petto di pollo, pane, formaggio, ecc.)
+- "dish": un piatto o pasto composto (pasta, insalata, pizza, pranzo con più componenti, ecc.)
+- "barcode": un codice a barre EAN/UPC visibile sull'etichetta di un prodotto confezionato
+- "workout_plan": una scheda di allenamento scritta con esercizi, serie, ripetizioni (su carta, schermo o tabella)
+- "gym_session": il display di un macchinario da palestra con dati di sessione (calorie bruciate, tempo, distanza, velocità)
+- "calorie_targets": un documento con obiettivi nutrizionali o prescrizione dietetica con macro/kcal
+- "unknown": immagine non pertinente, troppo sfocata, o non riconoscibile
+
+Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown.
+{
+  "type": "food" | "dish" | "barcode" | "workout_plan" | "gym_session" | "calorie_targets" | "unknown",
+  "label": "titolo breve in italiano (es: Petto di pollo, Scheda palestra, Barretta proteica)",
+  "description": "una frase in italiano che descrive cosa hai visto nell'immagine",
+  "data": {
+    per food/dish: { "description": "ingredienti visibili e porzioni stimate in italiano" },
+    per barcode: { "barcode": "codice numerico se chiaramente leggibile, altrimenti null" },
+    per workout_plan: { "description": "lista degli esercizi, serie e ripetizioni estratti" },
+    per gym_session: { "activityType": "tipo attività in italiano", "durationMin": numero o null, "kcal": numero o null },
+    per calorie_targets: { "kcal": numero o null, "protein": numero o null, "carbs": numero o null, "fat": numero o null },
+    per unknown: {}
+  }
+}`;
+
+export async function aiSmartScan(image: string, mediaType: string): Promise<unknown> {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      system: SMART_SCAN_SYSTEM,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: image } },
+          { type: 'text', text: 'Classifica questa immagine.' },
+        ],
+      }],
+    }),
+  });
+  const data = await response.json() as { content?: { type: string; text: string }[] };
+  const text = data.content?.find((b) => b.type === 'text')?.text || '{}';
+  try {
+    return JSON.parse(text.replace(/```json|```/g, '').trim());
+  } catch {
+    return { type: 'unknown', label: 'Non riconosciuto', description: 'Impossibile analizzare l\'immagine', data: {} };
+  }
+}
+
 export async function aiSuggest(remaining: { kcal: number; protein: number; carbs: number; fat: number }) {
   const msg = `Macro rimanenti da raggiungere oggi:\n- Calorie: ${remaining.kcal} kcal\n- Proteine: ${remaining.protein}g\n- Carboidrati: ${remaining.carbs}g\n- Grassi: ${remaining.fat}g\nSuggerisci 3 pasti o spuntini concreti e semplici da preparare.`;
   return callClaude(SUGGEST_SYSTEM, msg);

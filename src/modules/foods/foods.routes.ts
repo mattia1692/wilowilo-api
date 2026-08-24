@@ -1,12 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../../shared/middleware/auth';
-import { customFoodBodySchema, idParamSchema, aiAnalyzeSchema, aiSuggestSchema, aiPlanSchema, aiPhotoSchema, aiUnifiedSchema, savedMealBodySchema } from './foods.schema';
+import { customFoodBodySchema, idParamSchema, aiAnalyzeSchema, aiSuggestSchema, aiPlanSchema, aiPhotoSchema, aiUnifiedSchema, aiSmartScanSchema, savedMealBodySchema } from './foods.schema';
 import {
   getCustomFoods, upsertCustomFood, deleteCustomFood,
   getSavedMeals, upsertSavedMeal, deleteSavedMeal,
   searchFoods, searchFoodsExtended, lookupBarcode,
   logSearchMiss,
-  aiAnalyze, aiSuggest, aiPlan, aiAnalyzePhoto, aiAnalyzeUnified, checkAiRate,
+  aiAnalyze, aiSuggest, aiPlan, aiAnalyzePhoto, aiAnalyzeUnified, aiSmartScan, checkAiRate,
 } from './foods.service';
 import { ValidationError, RateLimitError } from '../../shared/errors';
 
@@ -155,6 +155,17 @@ export async function foodsRoutes(fastify: FastifyInstance) {
       if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? 'Parametri non validi');
 
       return reply.send(await aiAnalyzeUnified(parsed.data.food, parsed.data.images));
+    });
+
+    // POST /ai/smart-scan — classifica foto e restituisce tipo + dati strutturati
+    authed.post('/ai/smart-scan', { bodyLimit: 4 * 1024 * 1024 }, async (request, reply) => {
+      const userId = request.user.sub;
+      if (!checkAiRate(userId)) throw new RateLimitError();
+
+      const parsed = aiSmartScanSchema.safeParse(request.body);
+      if (!parsed.success) throw new ValidationError('Immagine mancante o non valida');
+
+      return reply.send(await aiSmartScan(parsed.data.image, parsed.data.mediaType));
     });
   });
 }

@@ -57,6 +57,11 @@ export const aiUnifiedSchema = z.object({
   message: 'Fornisci testo o almeno una foto',
 });
 
+export const aiSmartScanSchema = z.object({
+  image: z.string().min(1),
+  mediaType: z.enum(['image/jpeg', 'image/png', 'image/webp']).default('image/jpeg'),
+});
+
 export type CustomFoodBody = z.infer<typeof customFoodBodySchema>;
 
 export const savedMealBodySchema = z.object({
