@@ -265,7 +265,9 @@ const SMART_SCAN_SYSTEM = `Analizza l'immagine e classifica il suo contenuto in 
 - "workout_plan": una scheda di allenamento scritta con esercizi, serie, ripetizioni
 - "gym_session": il display di un macchinario da palestra con dati di sessione (calorie, tempo, distanza)
 - "calorie_targets": un documento con obiettivi nutrizionali o prescrizione dietetica con macro/kcal
-- "unknown": immagine non pertinente, troppo sfocata, o non riconoscibile
+- "unknown": immagine non pertinente (paesaggi, persone, oggetti non alimentari, screenshot non correlati), troppo sfocata, o non riconoscibile
+
+REGOLA FONDAMENTALE: se l'immagine NON riguarda cibo, alimentazione, allenamento o prodotti alimentari (es. paesaggi, selfie, animali, oggetti casuali, screenshot di app non correlate), rispondi SEMPRE con type "unknown" e data {}. Non descrivere mai il contenuto di immagini non pertinenti.
 
 PRIORITÀ:
 1. Se vedi una tabella nutrizionale con valori per 100g (kcal, proteine, carboidrati, grassi), classifica SEMPRE come "nutrition_label".
