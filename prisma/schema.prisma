@@ -110,6 +110,7 @@ model SavedMeal {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   items     Json                             // FoodItem[]
+  servings  Int      @default(1)            // numero di porzioni che il piatto rappresenta
   createdAt DateTime @default(now())
 
   @@index([userId])
@@ -205,6 +206,7 @@ model TargetSnapshot {
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   effectiveDate String                        // YYYY-MM-DD — giorno da cui questi target sono in vigore
+  endDate       String?                       // YYYY-MM-DD — giorno in cui il regime termina (null = indefinito)
   name          String?                       // nome del regime (es. "Bulk", "Mantenimento")
   kcal          Float
   protein       Float

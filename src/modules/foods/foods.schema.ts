@@ -67,4 +67,5 @@ export type CustomFoodBody = z.infer<typeof customFoodBodySchema>;
 export const savedMealBodySchema = z.object({
   name: z.string().min(1).max(100),
   items: z.array(z.record(z.unknown())),
+  servings: z.number().int().min(1).max(99).optional().default(1),
 });

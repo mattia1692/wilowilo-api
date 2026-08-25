@@ -55,11 +55,12 @@ export async function upsertSavedMeal(
   id: string,
   name: string,
   items: object,
+  servings = 1,
 ) {
   return prisma.savedMeal.upsert({
     where: { id },
-    create: { id, userId, name, items },
-    update: { name, items },
+    create: { id, userId, name, items, servings },
+    update: { name, items, servings },
   });
 }
 

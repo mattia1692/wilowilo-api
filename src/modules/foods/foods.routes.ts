@@ -86,7 +86,7 @@ export async function foodsRoutes(fastify: FastifyInstance) {
       const bodyParsed = savedMealBodySchema.safeParse(request.body);
       if (!bodyParsed.success) throw new ValidationError(bodyParsed.error.issues[0]?.message ?? 'Dati non validi');
 
-      const meal = await upsertSavedMeal(fastify.prisma, userId, paramsParsed.data.id, bodyParsed.data.name, bodyParsed.data.items);
+      const meal = await upsertSavedMeal(fastify.prisma, userId, paramsParsed.data.id, bodyParsed.data.name, bodyParsed.data.items, bodyParsed.data.servings);
       return reply.send(meal);
     });
 
