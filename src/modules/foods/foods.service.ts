@@ -283,7 +283,7 @@ Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown.
   "description": "una frase in italiano che descrive cosa hai visto",
   "data": {
     per nutrition_label: { "name": "nome prodotto se visibile o null", "kcal": numero per 100g o null, "protein": numero per 100g o null, "carbs": numero per 100g o null, "fat": numero per 100g o null, "satfat": numero per 100g o null, "fiber": numero per 100g o null },
-    per recipe: { "dish_name": "nome del piatto o null", "servings": numero porzioni o null, "ingredients": [{ "name": "nome ingrediente", "quantity": numero, "unit": "g|ml|pz|cucchiai|tazze|ecc", "kcal": numero stimato }], "total_kcal": numero, "total_protein": numero, "total_carbs": numero, "total_fat": numero },
+    per recipe: { "dish_name": "nome del piatto o null", "servings": numero porzioni o null, "ingredients": [{ "name": "nome ingrediente", "quantity": numero, "unit": "g|ml|pz|cucchiai|tazze|ecc", "kcal": numero stimato, "protein": numero stimato, "carbs": numero stimato, "fat": numero stimato }], "total_kcal": numero, "total_protein": numero, "total_carbs": numero, "total_fat": numero },
     per food/dish: { "description": "ingredienti visibili e porzioni stimate" },
     per barcode: { "barcode": "codice numerico se leggibile, altrimenti null" },
     per workout_plan: { "description": "esercizi, serie, ripetizioni estratti" },
