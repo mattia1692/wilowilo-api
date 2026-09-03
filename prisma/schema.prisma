@@ -132,6 +132,7 @@ model Activity {
   kcal        Int
   addToBudget Boolean  @default(false)
   exercises   Json?
+  schedaId    String?
   createdAt   DateTime @default(now())
 
   @@index([userId])

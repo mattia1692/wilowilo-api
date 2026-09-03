@@ -13,6 +13,7 @@ export const activityBodySchema = z.object({
   kcal:        z.number().int().min(0),
   addToBudget: z.boolean().default(false),
   exercises:   z.any().optional(),
+  schedaId:    z.string().optional(),
 });
 
 export const idParamSchema = z.object({ id: z.string().min(1) });
